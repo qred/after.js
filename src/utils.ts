@@ -29,7 +29,7 @@ export function is404ComponentAvailable(routes: AsyncRouteProps<any>[]): AsyncRo
 /** @private Returns 404Component from given routes if component was not avaliable returns default 404component */
 export function get404Component(routes: AsyncRouteProps<any>[]): AsyncRouteableComponent<any> {
 	const match = is404ComponentAvailable(routes)
-  return match ? match.component : NotFoundComponent 
+  return match ? match.component : NotFoundComponent
 }
 
 /** @private Checks if 404Component is in routes, if it's not available add default 404 component */

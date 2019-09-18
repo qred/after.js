@@ -1,17 +1,17 @@
 import React from 'react';
 
-class Home extends React.Component {
+class RootRoute extends React.Component {
   static displayName = 'Assessments';
 
   static async getInitialProps() {
-    return { stuff: 'home stuffs' };
+    return { stuff: 'root route' };
   }
 
   render() {
     return (
-      <h1>Home</h1>
+      <h1>RootRoute</h1>
     );
   }
 }
 
-export default Home;
+export default RootRoute;

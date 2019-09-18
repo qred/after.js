@@ -1,17 +1,17 @@
 import React from 'react';
 
-class Home extends React.Component {
+class NestedRoute extends React.Component {
   static displayName = 'Assessments';
 
   static async getInitialProps() {
-    return { stuff: 'home stuffs' };
+    return { sub: 'nested route' };
   }
 
   render() {
     return (
-      <h1>Home</h1>
+      <h1>NestedRoute</h1>
     );
   }
 }
 
-export default Home;
+export default NestedRoute;

@@ -8,12 +8,14 @@ import UserDefined404Component from "./components/UserDefined404Component";
 import AsyncNotFound from "./components/AsyncNotFoundComponent";
 import DefaultNotFoundComponent from "../NotFoundComponent";
 
-function render({ url, ...params }) {
+function render({
+  url, ...params
+}: any) {
   return renderPage({ req: { url }, ...params });
 }
 
 describe("ErrorPage", () => {
-  let res;
+  let res: any;
   const assets = { client: { css: "", js: "" } };
   Helmet.canUseDOM = false;
   const routes = [{ path: "/", exact: true, component: Home }];

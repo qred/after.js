@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { Switch, Route, withRouter, Redirect,  match as Match, RouteComponentProps } from 'react-router-dom';
+import { withRouter, match as Match, RouteComponentProps } from 'react-router-dom';
+import { renderRoutes } from 'react-router-config';
 import { loadInitialProps } from './loadInitialProps';
 import { History, Location } from 'history';
 import { AsyncRouteProps } from './types';
-import { get404Component, getAllRoutes } from "./utils"
+import { get404Component } from "./utils"
 
 export interface AfterpartyProps extends RouteComponentProps<any> {
   history: History;
@@ -18,98 +19,74 @@ export interface AfterpartyState {
   previousLocation: Location | null;
 }
 
-class Afterparty extends React.Component<AfterpartyProps, AfterpartyState> {
-	prefetcherCache: any;
-	NotfoundComponent:React.ComponentType<RouteComponentProps<any>> | React.ComponentType<any>;
+const Afterparty = ({
+  history,
+  location,
+  data: defaultData,
+  match,
+  routes,
+  staticContext,
+  ...rest
+}: AfterpartyProps) => {
+  const [prefetcherCache, setPrefetcherCache] = React.useState({});
+  const [previousLocation, setPreviousLocation] = React.useState<Location | null>(null);
+  const [data, setData] = React.useState<Promise<any>[] | undefined>(defaultData);
+  const NotfoundComponent = React.useMemo(() => get404Component(routes), [routes]);
 
-  constructor(props: AfterpartyProps) {
-    super(props);
-
-    this.state = {
-      data: props.data,
-      previousLocation: null
-    };
-
-		this.prefetcherCache = {};
-		this.NotfoundComponent = get404Component(this.props.routes)
-  }
-
-  // only runs clizzient
-  componentWillReceiveProps(nextProps: AfterpartyProps) {
-    const navigated = nextProps.location !== this.props.location;
-    if (navigated) {
-      // save the location so we can render the old screen
-      this.setState({
-        previousLocation: this.props.location,
-        data: undefined // unless you want to keep it
-      });
-
-      const { data, match, routes, history, location, staticContext, ...rest } = nextProps;
-
-      loadInitialProps(this.props.routes, nextProps.location.pathname, {
-        location: nextProps.location,
-        history: nextProps.history,
-        ...rest
-      })
-        .then(({ data }) => {
-          // Only for page changes, prevent scroll up for anchor links
-          if (
-            (this.state.previousLocation &&
-              this.state.previousLocation.pathname) !==
-            nextProps.location.pathname
-          ) {
-          window.scrollTo(0, 0);
-          }
-          this.setState({ previousLocation: null, data });
-        })
-        .catch((e) => {
-          // @todo we should more cleverly handle errors???
-          console.log(e);
-        });
-    }
-  }
-
-  prefetch = (pathname: string) => {
-    loadInitialProps(this.props.routes, pathname, {
-      history: this.props.history
+  const prefetch = (pathname: string) => {
+    loadInitialProps(routes, pathname, {
+      history: history
     })
       .then(({ data }) => {
-        this.prefetcherCache = {
-          ...this.prefetcherCache,
+        setPrefetcherCache({
+          ...prefetcherCache,
           [pathname]: data
-        };
+        });
       })
       .catch((e) => console.log(e));
   };
 
-  render() {
-    const { previousLocation, data } = this.state;
-    const { location } = this.props;
-    const initialData = this.prefetcherCache[location.pathname] || data;
+  React.useEffect(() => {
+    // save the location so we can render the old screen
+    setPreviousLocation(location);
+    setData(undefined);
 
-    return (
-      <Switch>
-				{initialData && initialData.statusCode && initialData.statusCode === 404 && <Route component={this.NotfoundComponent} path={location.pathname} />}
-				{initialData && initialData.redirectTo && initialData.redirectTo && <Redirect to={initialData.redirectTo} />}
-        {getAllRoutes(this.props.routes).map((r, i) => (
-          <Route
-            key={`route--${i}`}
-            path={r.path}
-            exact={r.exact}
-            location={previousLocation || location}
-            render={(props) =>
-              React.createElement(r.component, {
-                ...initialData,
-                history: props.history,
-                location: previousLocation || location,
-                match: props.match,
-                prefetch: this.prefetch
-              })
-            }
-          />
-        ))}
-      </Switch>
-    );
+    // const { data, match, routes, history, location, staticContext, ...rest } = nextProps;
+
+    loadInitialProps(routes, location.pathname, {
+      location: location,
+      history: history,
+      ...rest
+    })
+      .then(({ data }) => {
+        // Only for page changes, prevent scroll up for anchor links
+        if (
+          (previousLocation && previousLocation.pathname) !== location.pathname
+        ) {
+        window.scrollTo(0, 0);
+        }
+        setPreviousLocation(null);
+        setData(data);
+      })
+      .catch((e) => {
+        // @todo we should more cleverly handle errors???
+        console.log(e);
+      });
+  }, [location]);
+
+  const initialData = prefetcherCache[location.pathname] || data || {};
+
+  if (initialData && initialData.statusCode && initialData.statusCode === 404) {
+    routes.unshift({
+      component: NotfoundComponent,
+      path: location.pathname
+    })
   }
+
+  return renderRoutes(routes, {
+    ...initialData,
+    prefetch
+  });
 }
+
 export const After = withRouter(Afterparty);

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Module, AsyncRouteComponentState, AsyncRouteComponentType, Ctx } from './types';
+import { Module, AsyncRouteComponentType, Ctx } from './types';
 
 /**
  * Returns a new React component, ready to be instantiated.
@@ -14,61 +14,44 @@ export function asyncComponent<Props>({
   Placeholder?: React.ComponentType<Props>;
 }) {
   // keep Component in a closure to avoid doing this stuff more than once
-  let Component: AsyncRouteComponentType<Props> | null = null;
+  let Component: AsyncRouteComponentType | null = null;
 
-  return class AsyncRouteComponent extends React.Component<Props, AsyncRouteComponentState> {
-    /**
-     * Static so that you can call load against an uninstantiated version of
-     * this component. This should only be called one time outside of the
-     * normal render path.
-     */
-    static load() {
-      return loader().then((ResolvedComponent) => {
-        Component = ResolvedComponent!.default || ResolvedComponent;
-      });
+  const AsyncRouteComponent: any = (props: Props) => {
+    const [ComponentFromState, setComponent] = React.useState<AsyncRouteComponentType | null>(Component);
+
+    const updateState = () => {
+        if (ComponentFromState !== Component) {
+          setComponent(Component)
+        }
     }
 
-    static getInitialProps(ctx: Ctx<any>) {
-      // Need to call the wrapped components getInitialProps if it exists
-      if (Component !== null) {
-        return Component.getInitialProps ? Component.getInitialProps(ctx) : Promise.resolve(null);
-      }
+    React.useEffect(() => {
+      AsyncRouteComponent.load!().then(updateState)
+    })
+
+    if (ComponentFromState) {
+      return <ComponentFromState {...props} />;
     }
 
-    constructor(props: Props) {
-      super(props);
-      this.updateState = this.updateState.bind(this);
-      this.state = {
-        Component
-      };
+    if (Placeholder) {
+      return <Placeholder {...props} />;
     }
 
-    componentWillMount() {
-      AsyncRouteComponent.load().then(this.updateState);
-    }
+    return null;
+  }
 
-    updateState() {
-      // Only update state if we don't already have a reference to the
-      // component, this prevent unnecessary renders.
-      if (this.state.Component !== Component) {
-        this.setState({
-          Component
-        });
-      }
-    }
-
-    render() {
-      const { Component: ComponentFromState } = this.state;
-
-      if (ComponentFromState) {
-        return <ComponentFromState {...this.props} />;
-      }
-
-      if (Placeholder) {
-        return <Placeholder {...this.props} />;
-      }
-
-      return null;
-    }
+  AsyncRouteComponent.load = async () => {
+    const ResolvedComponent = await loader();
+    Component = ResolvedComponent!.default || ResolvedComponent;
+    return Component;
   };
+
+  AsyncRouteComponent.getInitialProps = (ctx: Ctx<any>) => {
+    // Need to call the wrapped components getInitialProps if it exists
+    if (Component !== null) {
+      return Component.getInitialProps ? Component.getInitialProps(ctx) : Promise.resolve(null);
+    }
+  }
+
+  return AsyncRouteComponent;
 }
